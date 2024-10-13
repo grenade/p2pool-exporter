@@ -12,15 +12,19 @@ mod utils;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Data directory containing P2Pool data
+    /// data directory containing P2Pool data
     #[arg(short, long, value_name = "DIR")]
     data_dir: PathBuf,
+
+    /// http port
+    #[arg(short, long, value_name = "PORT", default_value = "18090")]
+    port: u16,
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
-    info!("Reading from directory: {}", args.data_dir.display());
+    info!("reading from directory: {}", args.data_dir.display());
 
     // a builder for `FmtSubscriber`.
     let subscriber = FmtSubscriber::builder()
@@ -36,9 +40,9 @@ async fn main() {
         .route("/", get(get_stratum_table))
         .layer(Extension(args.data_dir));
 
-    // run it with hyper on localhost:3000
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    info!("Listening on {}", addr);
+    // run it with hyper on localhost:18090
+    let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
+    info!("listening on {}", &addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await

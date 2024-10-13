@@ -1,5 +1,5 @@
 [package]
-name = "poolboy"
+name = "p2pool-exporter"
 version = "0.1.2"
 edition = "2021"
 authors = ["Cristian <poolboy@simplelogin.dedyn.io>"]
