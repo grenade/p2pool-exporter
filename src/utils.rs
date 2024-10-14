@@ -1,23 +1,35 @@
+use std::collections::HashMap;
 use axum::response::Html;
-use axum::Extension;
+use axum::{
+    Extension,
+    //Json,
+};
 use chrono::{DateTime, Utc};
 use serde_derive::Deserialize;
 use serde_with::{serde_as, TimestampSeconds};
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use std::time::SystemTime;
+use std::time::{
+    SystemTime,
+    UNIX_EPOCH,
+};
 use tracing::debug;
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct Stratum {
-    hashrate_15m: f32,
-    hashrate_1h: f32,
-    hashrate_24h: f32,
-    shares_found: usize,
-    shares_failed: usize,
-    connections: usize,
-    incoming_connections: usize,
+    #[serde(rename = "hashrate_15m")]
+    hash_rate_15m: u64,
+    #[serde(rename = "hashrate_1h")]
+    hash_rate_1h: u64,
+    #[serde(rename = "hashrate_24h")]
+    hash_rate_24h: u64,
+
+    shares_found: u64,
+    shares_failed: u64,
+    connections: u64,
+    incoming_connections: u64,
 }
 
 #[serde_as]
@@ -27,9 +39,74 @@ struct NetworkStats {
     timestamp: SystemTime,
 }
 
+#[derive(Debug, Deserialize, PartialEq)]
+struct Metric<T> {
+    name: String,
+    definition: String,
+    help: String,
+    value: Observation<T>,
+}
+
+impl<T> Metric<T> {
+    pub fn new(name: String, definition: String, help: String, value: Observation<T>) -> Self {
+        Self { name, definition, help, value }
+    }
+}
+
+impl<T> fmt::Display for Metric<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = &self.name;
+        let help = &self.help;
+        let definition = &self.definition;
+        let value = &self.value;
+        write!(f, "# HELP {name} {help}\n# TYPE {name} {definition}\n{value}")
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+struct Observation<T> {
+    name: String,
+    label: Option<String>,
+    value: Option<T>,
+    values: Option<HashMap<String, T>>,
+}
+
+impl<T> Observation<T> {
+    pub fn new(name: String, label: Option<String>, value: Option<T>, values: Option<HashMap<String, T>>) -> Self {
+        Self { name, label, value, values }
+    }
+}
+
+impl<T> fmt::Display for Observation<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = &self.name;
+        let serialised_self = match &self.value {
+            None => match (&self.label, &self.values) {
+                (Some(label), Some(values)) => {
+                    let serialized_values = values
+                        .iter()
+                        .map(|(key, value)| format!(r#"{name}{{{label}="{key}"}} {value}"#))
+                        .collect::<Vec<String>>()
+                        .join("\n");
+                    format!("{serialized_values}")
+                },
+                _ => panic!("failed to format observation for display"),
+            },
+            Some(value) => format!("{name} {value}")
+        };
+        write!(f, "{serialised_self}")
+    }
+}
+
 ///read file and return String
 async fn get_file_str(file_path: PathBuf) -> String {
-    debug!("Reading file {}", file_path.display());
+    debug!("reading file {}", file_path.display());
     let mut file = File::open(file_path).unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
@@ -54,16 +131,110 @@ async fn convert_to_network_timestamp(network_str: String) -> String {
     <std::time::SystemTime as Into<DateTime<Utc>>>::into(network_stats.timestamp).to_string()
 }
 
+async fn get_prometheus_metrics(data_dir: PathBuf) -> Vec<Metric<u64>> {
+    let stratum = get_stratum(get_file_str(data_dir.join("local").join("stratum")).await).await;
+    let network = get_network_timestamp(get_file_str(data_dir.join("network").join("stats")).await).await;
+    vec![
+        Metric::new(
+            "network_timestamp".to_string(),
+            "gauge".to_string(),
+            "network timestamp as seconds since unix epoch.".to_string(),
+            Observation::new(
+                "network_timestamp".to_string(),
+                None,
+                Some(network.timestamp.duration_since(UNIX_EPOCH).unwrap().as_secs()),
+                None,
+            ),
+        ),
+        Metric::new(
+            "stratum_hash_rate".to_string(),
+            "summary".to_string(),
+            "a summary of the hash rate observed within an observation period.".to_string(),
+            Observation::new(
+                "stratum_hash_rate".to_string(),
+                Some("period".to_string()),
+                None,
+                Some(HashMap::from([
+                    ("15m".to_string(), stratum.hash_rate_15m),
+                    ("1h".to_string(), stratum.hash_rate_1h),
+                    ("24h".to_string(), stratum.hash_rate_24h),
+                ])),
+            ),
+        ),
+        Metric::new(
+            "stratum_shares_found".to_string(),
+            "gauge".to_string(),
+            "number of found shares.".to_string(),
+            Observation {
+                name: "stratum_shares_found".to_string(),
+                label: None,
+                values: None,
+                value: Some(stratum.shares_found),
+            },
+        ),
+        Metric::new(
+            "stratum_shares_failed".to_string(),
+            "gauge".to_string(),
+            "number of failed shares.".to_string(),
+            Observation {
+                name: "stratum_shares_failed".to_string(),
+                label: None,
+                values: None,
+                value: Some(stratum.shares_failed),
+            },
+        ),
+        Metric::new(
+            "stratum_connections_outbound".to_string(),
+            "gauge".to_string(),
+            "number of outbound connections.".to_string(),
+            Observation {
+                name: "stratum_connections_outbound".to_string(),
+                label: None,
+                values: None,
+                value: Some(stratum.connections),
+            },
+        ),
+        Metric::new(
+            "stratum_connections_inbound".to_string(),
+            "gauge".to_string(),
+            "number of inbound connections.".to_string(),
+            Observation {
+                name: "stratum_connections_inbound".to_string(),
+                label: None,
+                values: None,
+                value: Some(stratum.incoming_connections),
+            },
+        ),
+    ]
+}
+
+/*
+pub async fn serve_json_metrics(Extension(data_dir): Extension<PathBuf>) -> Json<Vec<Metric<u64>>> {
+    Json(get_prometheus_metrics(data_dir).await)
+}
+*/
+
+
+pub async fn serve_prometheus_metrics(Extension(data_dir): Extension<PathBuf>) -> String {
+    let metrics = get_prometheus_metrics(data_dir)
+        .await
+        .iter()
+        .map(|metric| format!("{metric}"))
+        .collect::<Vec<String>>()
+        .join("\n");
+    format!("{metrics}")
+}
+
 /// Populates HTML table with stratum JSON
-pub async fn get_stratum_table(Extension(data_dir): Extension<PathBuf>) -> Html<String> {
+pub async fn serve_stratum_table(Extension(data_dir): Extension<PathBuf>) -> Html<String> {
     let page_title = "Local Monero P2Pool stratum";
 
     let stratum_path = data_dir.join("local").join("stratum");
     let stratum_str = get_file_str(stratum_path).await;
     let stratum = get_stratum(stratum_str).await;
-    let hashrate_15m = stratum.hashrate_15m / 1000.0;
-    let hashrate_1h = stratum.hashrate_1h / 1000.0;
-    let hashrate_24h = stratum.hashrate_24h / 1000.0;
+    let hash_rate_15m = stratum.hash_rate_15m;
+    let hash_rate_1h = stratum.hash_rate_1h;
+    let hash_rate_24h = stratum.hash_rate_24h;
     let shares_found = stratum.shares_found;
     let shares_failed = stratum.shares_failed;
     let connections = stratum.connections;
@@ -103,15 +274,15 @@ pub async fn get_stratum_table(Extension(data_dir): Extension<PathBuf>) -> Html<
                         <tbody>
                             <tr>
                                 <td>15m</td>
-                                <td>{hashrate_15m}</td>
+                                <td>{hash_rate_15m}</td>
                             </tr>
                             <tr>
                                 <td>1h</td>
-                                <td>{hashrate_1h}</td>
+                                <td>{hash_rate_1h}</td>
                             </tr>
                             <tr>
                                 <td>24h</td>
-                                <td>{hashrate_24h}</td>
+                                <td>{hash_rate_24h}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -164,9 +335,9 @@ pub async fn get_stratum_table(Extension(data_dir): Extension<PathBuf>) -> Html<
 
         </html>"#,
         page_title = page_title,
-        hashrate_15m = hashrate_15m,
-        hashrate_1h = hashrate_1h,
-        hashrate_24h = hashrate_24h,
+        hash_rate_15m = hash_rate_15m,
+        hash_rate_1h = hash_rate_1h,
+        hash_rate_24h = hash_rate_24h,
         shares_found = shares_found,
         shares_failed = shares_failed,
         connections = connections,
@@ -195,9 +366,9 @@ mod tests {
     #[tokio::test]
     async fn test_get_stratumm() {
         let network_str = r#"{
-              "hashrate_15m": 10505,
-              "hashrate_1h": 13794,
-              "hashrate_24h": 24049,
+              "hash_rate_15m": 10505,
+              "hash_rate_1h": 13794,
+              "hash_rate_24h": 24049,
               "total_hashes": 6021562332,
               "shares_found": 18,
               "shares_failed": 1,
@@ -210,9 +381,9 @@ mod tests {
         assert_eq!(
             stratum,
             Stratum {
-                hashrate_1h: 13794.0,
-                hashrate_15m: 10505.0,
-                hashrate_24h: 24049.0,
+                hash_rate_1h: 13794000,
+                hash_rate_15m: 10505000,
+                hash_rate_24h: 24049000,
                 shares_found: 18,
                 shares_failed: 1,
                 connections: 2,
