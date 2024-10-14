@@ -1,7 +1,7 @@
 note: this project is a fork of [caheredia/poolboy](https://github.com/caheredia/poolboy) which publishes an html table containing p2pool metrics. it has been forked and adapted to serve metrics in a format digestble by prometheus and renamed to reflect the purpose of the fork.
 
 # p2pool-exporter
-![ci tests](https://github.com/grenade/p2pool-exporter/actions/workflows/rust.yml/badge.svg)
+![ci tests](https://github.com/grenade/p2pool-exporter/actions/workflows/test.yml/badge.svg)
 
 a prometheus exporter of p2pool metrics from your local [monero p2pool](https://github.com/SChernykh/p2pool), a decentralized pool for [monero](https://github.com/monero-project/monero) mining.
 
