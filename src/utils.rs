@@ -100,12 +100,12 @@ where
         let serialised_self = match &self.value {
             None => match (&self.label, &self.values) {
                 (Some(label), Some(values)) => {
-                    let serialized_values = values
+                    values
                         .iter()
                         .map(|(key, value)| format!(r#"{name}{{{label}="{key}"}} {value}"#))
                         .collect::<Vec<String>>()
-                        .join("\n");
-                    format!("{serialized_values}")
+                        .join("\n")
+                        .to_string()
                 },
                 _ => panic!("failed to format observation for display"),
             },
@@ -225,13 +225,13 @@ pub async fn serve_json_metrics(Extension(data_dir): Extension<PathBuf>) -> Resp
 }
 
 pub async fn serve_prometheus_metrics(Extension(data_dir): Extension<PathBuf>) -> String {
-    let metrics = get_prometheus_metrics(data_dir)
+    get_prometheus_metrics(data_dir)
         .await
         .iter()
         .map(|metric| format!("{metric}"))
         .collect::<Vec<String>>()
-        .join("\n");
-    format!("{metrics}")
+        .join("\n")
+        .to_string()
 }
 
 /// Populates HTML table with stratum JSON
