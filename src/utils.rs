@@ -363,29 +363,29 @@ mod tests {
     #[tokio::test]
     async fn test_get_network_timestamp() {
         let network_str = r#"{
-                  "difficulty": 326180875193,
-                  "hash": "5cc9cc40404608a866c16f4114a396355b82f8148c4285a21cd0937e8b84e776",
-                  "height": 2870723,
-                  "reward": 605959900000,
-                  "timestamp": 1682270152
-                  }"#;
+            "difficulty": 326180875193,
+            "hash": "5cc9cc40404608a866c16f4114a396355b82f8148c4285a21cd0937e8b84e776",
+            "height": 2870723,
+            "reward": 605959900000,
+            "timestamp": 1682270152
+        }"#;
         let ts = convert_to_network_timestamp(network_str.to_string()).await;
         assert_eq!(ts, "2023-04-23 17:15:52 UTC");
     }
     #[tokio::test]
-    async fn test_get_stratumm() {
+    async fn test_get_stratum() {
         let network_str = r#"{
-              "hash_rate_15m": 10505,
-              "hash_rate_1h": 13794,
-              "hash_rate_24h": 24049,
-              "total_hashes": 6021562332,
-              "shares_found": 18,
-              "shares_failed": 1,
-              "average_effort": 122.298,
-              "current_effort": 108.724,
-              "connections": 2,
-              "incoming_connections": 1
-              }"#;
+            "hashrate_15m": 10505,
+            "hashrate_1h": 13794,
+            "hashrate_24h": 24049,
+            "total_hashes": 6021562332,
+            "shares_found": 18,
+            "shares_failed": 1,
+            "average_effort": 122.298,
+            "current_effort": 108.724,
+            "connections": 2,
+            "incoming_connections": 1
+        }"#;
         let stratum = get_stratum(network_str.to_string()).await;
         assert_eq!(
             stratum,
