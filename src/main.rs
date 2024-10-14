@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use utils::{
-    //serve_json_metrics,
+    serve_json_metrics,
     serve_prometheus_metrics,
     serve_stratum_table,
 };
@@ -71,7 +71,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(serve_stratum_table))
         .route(args.metrics_path.into_os_string().to_str().unwrap(), get(serve_prometheus_metrics))
-        //.route("/json", get(serve_json_metrics))
+        .route("/json", get(serve_json_metrics))
         .layer(Extension(args.data_directory));
 
     let socket = SocketAddr::from((args.listen_ip, args.listen_port));

@@ -2,10 +2,14 @@ use std::collections::HashMap;
 use axum::response::Html;
 use axum::{
     Extension,
-    //Json,
+    Json,
+    response::{
+        IntoResponse,
+        Response
+    }
 };
 use chrono::{DateTime, Utc};
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, TimestampSeconds};
 use std::fmt;
 use std::fs::File;
@@ -39,17 +43,17 @@ struct NetworkStats {
     timestamp: SystemTime,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 struct Metric<T> {
     name: String,
     definition: String,
     help: String,
-    value: Observation<T>,
+    observation: Observation<T>,
 }
 
 impl<T> Metric<T> {
-    pub fn new(name: String, definition: String, help: String, value: Observation<T>) -> Self {
-        Self { name, definition, help, value }
+    pub fn new(name: String, definition: String, help: String, observation: Observation<T>) -> Self {
+        Self { name, definition, help, observation }
     }
 }
 
@@ -61,16 +65,23 @@ where
         let name = &self.name;
         let help = &self.help;
         let definition = &self.definition;
-        let value = &self.value;
-        write!(f, "# HELP {name} {help}\n# TYPE {name} {definition}\n{value}")
+        let observation = &self.observation;
+        write!(f, "# HELP {name} {help}\n# TYPE {name} {definition}\n{observation}")
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 struct Observation<T> {
+    #[serde(skip_serializing)]
     name: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     label: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     value: Option<T>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     values: Option<HashMap<String, T>>,
 }
 
@@ -208,12 +219,10 @@ async fn get_prometheus_metrics(data_dir: PathBuf) -> Vec<Metric<u64>> {
     ]
 }
 
-/*
-pub async fn serve_json_metrics(Extension(data_dir): Extension<PathBuf>) -> Json<Vec<Metric<u64>>> {
-    Json(get_prometheus_metrics(data_dir).await)
-}
-*/
 
+pub async fn serve_json_metrics(Extension(data_dir): Extension<PathBuf>) -> Response {
+    Json(get_prometheus_metrics(data_dir).await).into_response()
+}
 
 pub async fn serve_prometheus_metrics(Extension(data_dir): Extension<PathBuf>) -> String {
     let metrics = get_prometheus_metrics(data_dir)

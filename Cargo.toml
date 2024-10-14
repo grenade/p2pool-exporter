@@ -2,15 +2,13 @@
 name = "p2pool-exporter"
 version = "0.1.2"
 edition = "2021"
-authors = ["Cristian <poolboy@simplelogin.dedyn.io>"]
-description = "A tiny web server for Monero P2Pool stats"
+authors = ["rob thijssen <p2pool-exporter@rob.tn>"]
+description = "a prometheus exporter of p2pool metrics"
 license = "MIT"
-homepage = "https://github.com/caheredia/poolboy"
-repository = "https://github.com/caheredia/poolboy"
-keywords = ["monero", "server", "p2pool"]
-readme = "README.md"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+homepage = "https://github.com/grenade/p2pool-exporter"
+repository = "https://github.com/grenade/p2pool-exporter"
+keywords = ["monero", "server", "p2pool", "prometheus", "metrics", "exporter"]
+readme = "readme.md"
 
 [dependencies]
 axum = "0.6.15"
