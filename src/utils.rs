@@ -236,7 +236,7 @@ pub async fn serve_prometheus_metrics(Extension(data_dir): Extension<PathBuf>) -
 
 /// Populates HTML table with stratum JSON
 pub async fn serve_stratum_table(Extension(data_dir): Extension<PathBuf>) -> Html<String> {
-    let page_title = "Local Monero P2Pool stratum";
+    let page_title = "p2pool stats";
 
     let stratum_path = data_dir.join("local").join("stratum");
     let stratum_str = get_file_str(stratum_path).await;
