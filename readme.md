@@ -42,7 +42,7 @@ p2pool-exporter \
     --metrics-path /metrics
 ```
 
-⚠️ it is important that the value of `--data-dir` should match the path used by p2pool's `--data-api` parameter.
+⚠️ it is important that the value of `--data-directory` should match the path used by p2pool's `--data-api` parameter.
 
 ## connecting to the server
 point your browser at:
