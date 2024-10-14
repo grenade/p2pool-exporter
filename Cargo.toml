@@ -1,6 +1,6 @@
 [package]
 name = "p2pool-exporter"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 authors = ["rob thijssen <p2pool-exporter@rob.tn>"]
 description = "a prometheus exporter of p2pool metrics"
