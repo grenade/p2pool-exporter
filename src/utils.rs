@@ -390,9 +390,9 @@ mod tests {
         assert_eq!(
             stratum,
             Stratum {
-                hash_rate_1h: 13794000,
-                hash_rate_15m: 10505000,
-                hash_rate_24h: 24049000,
+                hash_rate_15m: 10505,
+                hash_rate_1h: 13794,
+                hash_rate_24h: 24049,
                 shares_found: 18,
                 shares_failed: 1,
                 connections: 2,
